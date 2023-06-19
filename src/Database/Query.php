@@ -3,68 +3,88 @@
 	namespace Reborn\Phoenix\Database;
 	
 	use PDO;
+	use PDOStatement;
+	use Reborn\Phoenix\Database\Exception\NotExecutedQueryException;
 	
 	class Query
 	{
+		private PDOStatement $statement;
+		private Database $database;
+		private bool $executed = false;
 		
-		private \PDOStatement $statement;
-		
-		/**
-		 * @throws Exception
+		/** The constructor prepare the query to be executed
+		 *
+		 * @param Database $database
+		 * @param string   $query
 		 */
-		public function __construct(string $query, array $parameters = null, bool $execute = true, Connection $connection = null)
-		{
-			$connection ??= Connection::getFirstInstance();
-			
-			$this->statement = $connection->prepare($query);
-			
-			if ($execute) {
-				$this->execute($parameters);
-			}
+		public function __construct(Database $database, string $query) {
+			$this->database = $database;
+			$this->statement = $this->database->prepare($query);
 		}
 		
-		public function execute(array $parameters): bool
+		/** Execute the query.
+		 * Has to be done before retrieving fields/records
+		 *
+		 * @param array $parameters array of parameter for the query. Use an indexed array if your query contain "?", an associative array otherwise
+		 *
+		 * @return bool true if query has been executed with success, false otherwise
+		 */
+		public function execute(array $parameters = []): bool
 		{
+			$this->executed = true;
 			return $this->statement->execute($parameters);
 		}
 		
-		public static function getRecord(string $query, array $parameters = null, Connection $connection = null): array|bool
+		/** Get the next record returned by the query
+		 *
+		 * @return array|false record / false if an error occurred
+		 *
+		 * @throws NotExecutedQueryException Thrown if the query has not been executed before this function
+		 */
+		public function getNextRecord(): array|false
 		{
-			return (new Query($query, $parameters, true, $connection))->getNextRecord();
-		}
-		
-		public function getNextRecord(): array|bool
-		{
+			if(!$this->executed) throw new NotExecutedQueryException("Query have to be executed before retrieving fields/records");
+			
 			return $this->statement->fetch(PDO::FETCH_ASSOC);
 		}
 		
-		public static function getRecords(string $query, array $parameters = null, Connection $connection = null): array
+		/** Get all the records returned by the query
+		 *
+		 * @return array|false records / false if an error occurred
+		 *
+		 * @throws NotExecutedQueryException Thrown if the query has not been executed before this function
+		 */
+		public function getAllRecords(): array|false
 		{
-			return (new Query($query, $parameters, true, $connection))->getAllRecords();
-		}
-		
-		public function getAllRecords(): array
-		{
+			if(!$this->executed) throw new NotExecutedQueryException("Query have to be executed before retrieving fields/records");
+			
 			return $this->statement->fetchAll(PDO::FETCH_ASSOC);
 		}
 		
-		public static function getField(string $query, array $parameters = null, Connection $connection = null): array|bool
-		{
-			return (new Query($query, $parameters, true, $connection))->getNextField();
-		}
-		
+		/** Get the first field of the next record
+		 *
+		 * @return mixed field / false if an error occurred or if there is no other record
+		 *
+		 * @throws NotExecutedQueryException Thrown if the query has not been executed before this function
+		 */
 		public function getNextField(): mixed
 		{
+			if(!$this->executed) throw new NotExecutedQueryException("Query have to be executed before retrieving fields/records");
+			
 			return $this->statement->fetch(PDO::FETCH_COLUMN);
 		}
 		
-		public static function getFields(string $query, array $parameters = null, Connection $connection = null): array
+		/** Get the first field of each record
+		 *
+		 * @return array|false fields / false if an error occurred
+		 *
+		 * @throws NotExecutedQueryException Thrown if the query has not been executed before this function
+		 */
+		public function getAllFields(): array|false
 		{
-			return (new Query($query, $parameters, true, $connection))->getAllFields();
-		}
-		
-		public function getAllFields(): mixed
-		{
+			if(!$this->executed) throw new NotExecutedQueryException("Query have to be executed before retrieving fields/records");
+			
 			return $this->statement->fetchAll(PDO::FETCH_COLUMN);
 		}
+		
 	}
