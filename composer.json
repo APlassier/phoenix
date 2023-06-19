@@ -1,6 +1,7 @@
 {
     "name": "statikk/phoenix",
     "description": "Light framework",
+    "version": "0.0.1",
     "type": "library",
     "license": "proprietary",
     "autoload": {
